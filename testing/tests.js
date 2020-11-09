@@ -52,7 +52,6 @@ run(async () => {
         but.hexToBuffer(constHex)
     });
 
-
     // Utf8ToBuffer
     await mark('utf8ToBuffer', samples, () => {
         but.utf8ToBuffer(constUtf8)
