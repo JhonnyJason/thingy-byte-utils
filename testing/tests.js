@@ -1,4 +1,4 @@
-global.window = {}
+// global.window = {}
 
 const but  = require("../output/index.js")
 const bench = require("micro-bmark")
