@@ -11,11 +11,14 @@ constArray[9] = 42
 const constArrayBuffer = constArray.buffer
 const constBuffer = Buffer.from(constArrayBuffer)
 const constHex = but.bufferToHex(constArray)
-const constUtf8 = "HelloWorld!"
+const constUtf8 = "HelloWörld!"
 
 const samples = 1000
 let result
 
+const buffer = but.utf8ToBuffer(constUtf8)
+const newstring = but.bufferToUtf8(buffer)
+console.log(newstring) 
 
 run(async () => {
     
