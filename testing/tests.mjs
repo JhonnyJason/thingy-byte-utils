@@ -1,7 +1,6 @@
 // global.window = {}
-
 import * as but from "../output/index.js"
-import {run, mark} from "micro-bmark"
+import {getTime, logMem, run, mark} from "micro-bmark"
 
 const constArray =  new Uint8Array(10)
 constArray.fill(32)
@@ -18,6 +17,7 @@ let result
 const buffer = but.utf8ToBytes(constUtf8)
 const newstring = but.bytesToUtf8(buffer)
 console.log(newstring) 
+console.log(constHex)
 
 run(async () => {
     
@@ -74,9 +74,9 @@ run(async () => {
     });
 
 
-    // // Log current RAM
-    // bench.logMem();
+    // Log current RAM
+    logMem();
    
-    // // Get current time in nanoseconds
-    // bench.getTime();
+    // Get current time in nanoseconds
+    getTime();
   });
