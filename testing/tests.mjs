@@ -11,7 +11,7 @@ const constBuffer = Buffer.from(constArrayBuffer)
 const constHex = but.bytesToHex(constArray)
 const constUtf8 = "HelloWörld!"
 
-const samples = 1000
+const samples = 1
 let result
 
 const buffer = but.utf8ToBytes(constUtf8)
@@ -23,7 +23,8 @@ run(async () => {
     
     // bytesToBigInt
     await mark('bytesToBigInt Uint8Array', samples, () => {
-        but.bytesToBigInt(constArray)
+        r = but.bytesToBigInt(constArray)
+        console.log(r)
     });
 
     await mark('bytesToBigInt ArrayBuffer', samples, () => {
