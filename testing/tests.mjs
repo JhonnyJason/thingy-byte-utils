@@ -1,6 +1,6 @@
 // global.window = {}
 import * as but from "../output/index.js"
-import {getTime, logMem, run, mark} from "micro-bmark"
+import * as bench from "micro-bmark"
 
 const constArray =  new Uint8Array(10)
 constArray.fill(32)
@@ -11,7 +11,7 @@ const constBuffer = Buffer.from(constArrayBuffer)
 const constHex = but.bytesToHex(constArray)
 const constUtf8 = "HelloWörld!"
 
-const samples = 1
+const samples = 10000000
 let result
 
 const buffer = but.utf8ToBytes(constUtf8)
@@ -19,65 +19,66 @@ const newstring = but.bytesToUtf8(buffer)
 console.log(newstring) 
 console.log(constHex)
 
-run(async () => {
+bench.run(async () => {
     
-    // bytesToBigInt
-    await mark('bytesToBigInt Uint8Array', samples, () => {
-        r = but.bytesToBigInt(constArray)
-        console.log(r)
-    });
+    // // bytesToBigInt
+    // await bench.mark('bytesToBigInt Uint8Array', samples, () => {
+    //     but.bytesToBigInt(constArray)
+    // });
 
-    await mark('bytesToBigInt ArrayBuffer', samples, () => {
-        but.bytesToBigInt(constArrayBuffer)
-    });
+    // await bench.mark('bytesToBigInt ArrayBuffer', samples, () => {
+    //     but.bytesToBigInt(constArrayBuffer)
+    // });
 
-    await mark('bytesToBigInt Buffer', samples, () => {
-        but.bytesToBigInt(constBuffer)
-    });
+    // await bench.mark('bytesToBigInt Buffer', samples, () => {
+    //     but.bytesToBigInt(constBuffer)
+    // });
 
-
-    // bytesToHex
-    await mark('bytesToHex Uint8Array', samples, () => {
-        but.bytesToHex(constArray)
-    });
-
-    await mark('bytesToHex ArrayBuffer', samples, () => {
-        but.bytesToHex(constArrayBuffer)
-    });
-
-    await mark('bytesToHex Buffer', samples, () => {
-        but.bytesToHex(constBuffer)
-    });
-
-
-    // HexToBytes
-    await mark('hexToBytes', samples, () => {
-        but.hexToBytes(constHex)
-    });
 
     // Utf8ToBytes
-    await mark('utf8ToBytes', samples, () => {
+    await bench.mark('utf8ToBytes', samples, () => {
         but.utf8ToBytes(constUtf8)
     });
 
 
-    // bytesToUtf8
-    await mark('bytesToUtf8 Uint8Array', samples, () => {
-        but.bytesToUtf8(constArray)
-    });
+    // // bytesToUtf8
+    // await bench.mark('bytesToUtf8 Uint8Array', samples, () => {
+    //     but.bytesToUtf8(constArray)
+    // });
 
-    await mark('bytesToUtf8 ArrayBuffer', samples, () => {
-        but.bytesToUtf8(constArrayBuffer)
-    });
 
-    await mark('bytesToUtf8 Buffer', samples, () => {
-        but.bytesToUtf8(constBuffer)
+    // // bytesToHex
+    // await bench.mark('bytesToHex Uint8Array', samples, () => {
+    //     but.bytesToHex(constArray)
+    // });
+
+    // await bench.mark('bytesToHex ArrayBuffer', samples, () => {
+    //     but.bytesToHex(constArrayBuffer)
+    // });
+
+    // await bench.mark('bytesToHex Buffer', samples, () => {
+    //     but.bytesToHex(constBuffer)
+    // });
+
+
+    // HexToBytes
+    await bench.mark('hexToBytes', samples, () => {
+        but.hexToBytes(constHex)
     });
+    
+
+    // await bench.mark('bytesToUtf8 ArrayBuffer', samples, () => {
+    //     but.bytesToUtf8(constArrayBuffer)
+    // });
+
+    // await bench.mark('bytesToUtf8 Buffer', samples, () => {
+    //     but.bytesToUtf8(constBuffer)
+    // });
 
 
     // Log current RAM
-    logMem();
+    bench.utils.logMem();
    
     // Get current time in nanoseconds
-    getTime();
+    bench.utils.getTime();
   });
