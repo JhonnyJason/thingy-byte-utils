@@ -1,0 +1,221 @@
+## bun 1.4.4
+
+bytesToHex random 16B
+  native toHex                          57 ns     279 MB/s  1.00x
+  current-browser (table)              112 ns     143 MB/s  1.95x
+  current-node (Buffer)                161 ns     100 MB/s  2.80x
+
+bytesToHex random 64B
+  native toHex                         155 ns     412 MB/s  1.00x
+  current-node (Buffer)                170 ns     377 MB/s  1.09x
+  current-browser (table)              474 ns     135 MB/s  3.05x
+
+bytesToHex random 256B
+  current-node (Buffer)                242 ns    1060 MB/s  1.00x
+  native toHex                         538 ns     476 MB/s  2.23x
+  current-browser (table)             1.81 µs     142 MB/s  7.49x
+
+bytesToHex random 1KB
+  current-node (Buffer)                693 ns    1477 MB/s  1.00x
+  native toHex                        2.00 µs     512 MB/s  2.89x
+  current-browser (table)             7.34 µs     140 MB/s  10.59x
+
+bytesToHex random 1MB
+  current-node (Buffer)               1.59 ms     660 MB/s  1.00x
+  native toHex                        1.92 ms     546 MB/s  1.21x
+  current-browser (table)            13.71 ms      76 MB/s  8.63x
+
+hexToBytes random 16B
+  native fromHex                        40 ns     404 MB/s  1.00x
+  js charCode                           46 ns     348 MB/s  1.16x
+  pool js charCode                     115 ns     140 MB/s  2.90x
+  pool setFromHex                      149 ns     107 MB/s  3.76x
+  Buffer.from hex                      384 ns      42 MB/s  9.71x
+  current (char map)                   804 ns      20 MB/s  20.32x
+
+hexToBytes random 64B
+  native fromHex                        56 ns    1142 MB/s  1.00x
+  js charCode                          159 ns     403 MB/s  2.84x
+  pool setFromHex                      191 ns     335 MB/s  3.41x
+  pool js charCode                     245 ns     261 MB/s  4.37x
+  Buffer.from hex                      423 ns     151 MB/s  7.54x
+  current (char map)                  3.11 µs      21 MB/s  55.41x
+
+hexToBytes random 256B
+  native fromHex                       131 ns    1961 MB/s  1.00x
+  pool setFromHex                      329 ns     778 MB/s  2.52x
+  Buffer.from hex                      398 ns     643 MB/s  3.05x
+  js charCode                          596 ns     429 MB/s  4.57x
+  pool js charCode                     851 ns     301 MB/s  6.52x
+  current (char map)                 13.27 µs      19 MB/s  101.69x
+
+hexToBytes random 1KB
+  native fromHex                       522 ns    1961 MB/s  1.00x
+  pool setFromHex                      630 ns    1626 MB/s  1.21x
+  Buffer.from hex                      707 ns    1449 MB/s  1.35x
+  pool js charCode                    2.40 µs     427 MB/s  4.59x
+  js charCode                         2.59 µs     395 MB/s  4.96x
+  current (char map)                 55.94 µs      18 MB/s  107.13x
+
+hexToBytes random 1MB
+  Buffer.from hex                   259.30 µs    4044 MB/s  1.00x
+  pool setFromHex                   417.70 µs    2510 MB/s  1.61x
+  pool js charCode                  418.90 µs    2503 MB/s  1.62x
+  native fromHex                    421.70 µs    2487 MB/s  1.63x
+  js charCode                         2.60 ms     403 MB/s  10.04x
+  current (char map)                 59.11 ms      18 MB/s  227.94x
+
+utf8ToBytes ascii 16B
+  current-browser (TextEncoder)         54 ns     296 MB/s  1.00x
+  pool js encode                       122 ns     131 MB/s  2.25x
+  TextEncoder encodeInto               128 ns     125 MB/s  2.36x
+  js encode                            133 ns     120 MB/s  2.46x
+  pool encodeInto                      172 ns      93 MB/s  3.17x
+  current-node (Buffer+copy)           249 ns      64 MB/s  4.60x
+  Buffer view                          387 ns      41 MB/s  7.15x
+
+utf8ToBytes mixed 16B
+  current-browser (TextEncoder)        129 ns     124 MB/s  1.00x
+  pool js encode                       139 ns     116 MB/s  1.07x
+  js encode                            154 ns     104 MB/s  1.19x
+  TextEncoder encodeInto               210 ns      76 MB/s  1.62x
+  pool encodeInto                      249 ns      64 MB/s  1.92x
+  current-node (Buffer+copy)           357 ns      45 MB/s  2.76x
+  Buffer view                          523 ns      31 MB/s  4.04x
+
+utf8ToBytes ascii 64B
+  current-browser (TextEncoder)         66 ns     974 MB/s  1.00x
+  TextEncoder encodeInto               162 ns     394 MB/s  2.47x
+  pool encodeInto                      194 ns     330 MB/s  2.95x
+  pool js encode                       215 ns     297 MB/s  3.28x
+  js encode                            254 ns     252 MB/s  3.86x
+  current-node (Buffer+copy)           267 ns     240 MB/s  4.06x
+  Buffer view                          447 ns     143 MB/s  6.79x
+
+utf8ToBytes mixed 64B
+  current-browser (TextEncoder)        132 ns     485 MB/s  1.00x
+  TextEncoder encodeInto               227 ns     281 MB/s  1.72x
+  pool js encode                       244 ns     262 MB/s  1.85x
+  js encode                            266 ns     240 MB/s  2.02x
+  pool encodeInto                      275 ns     233 MB/s  2.08x
+  current-node (Buffer+copy)           347 ns     185 MB/s  2.63x
+  Buffer view                          533 ns     120 MB/s  4.04x
+
+utf8ToBytes ascii 256B
+  current-browser (TextEncoder)         87 ns    2936 MB/s  1.00x
+  pool encodeInto                      238 ns    1076 MB/s  2.73x
+  TextEncoder encodeInto               282 ns     909 MB/s  3.23x
+  current-node (Buffer+copy)           317 ns     808 MB/s  3.63x
+  Buffer view                          476 ns     537 MB/s  5.46x
+  pool js encode                       574 ns     446 MB/s  6.58x
+  js encode                            700 ns     366 MB/s  8.03x
+
+utf8ToBytes mixed 256B
+  current-browser (TextEncoder)        386 ns     664 MB/s  1.00x
+  TextEncoder encodeInto               482 ns     531 MB/s  1.25x
+  pool encodeInto                      498 ns     514 MB/s  1.29x
+  current-node (Buffer+copy)           601 ns     426 MB/s  1.56x
+  pool js encode                       686 ns     373 MB/s  1.78x
+  js encode                            746 ns     343 MB/s  1.93x
+  Buffer view                          778 ns     329 MB/s  2.02x
+
+utf8ToBytes ascii 1KB
+  current-browser (TextEncoder)        313 ns    3273 MB/s  1.00x
+  pool encodeInto                      437 ns    2342 MB/s  1.40x
+  Buffer view                          647 ns    1582 MB/s  2.07x
+  current-node (Buffer+copy)           703 ns    1456 MB/s  2.25x
+  TextEncoder encodeInto               989 ns    1035 MB/s  3.16x
+  pool js encode                      2.03 µs     505 MB/s  6.48x
+  js encode                           2.64 µs     388 MB/s  8.43x
+
+utf8ToBytes mixed 1KB
+  current-browser (TextEncoder)       1.27 µs     807 MB/s  1.00x
+  pool encodeInto                     1.33 µs     773 MB/s  1.04x
+  Buffer view                         1.56 µs     656 MB/s  1.23x
+  current-node (Buffer+copy)          1.66 µs     618 MB/s  1.31x
+  TextEncoder encodeInto              1.78 µs     576 MB/s  1.40x
+  pool js encode                      2.47 µs     415 MB/s  1.95x
+  js encode                           3.04 µs     337 MB/s  2.40x
+
+utf8ToBytes ascii 1MB
+  pool encodeInto                   114.55 µs    9154 MB/s  1.00x
+  current-browser (TextEncoder)     115.70 µs    9063 MB/s  1.01x
+  Buffer view                       115.75 µs    9059 MB/s  1.01x
+  pool js encode                    116.32 µs    9014 MB/s  1.02x
+  current-node (Buffer+copy)        264.59 µs    3963 MB/s  2.31x
+  TextEncoder encodeInto            439.98 µs    2383 MB/s  3.84x
+  js encode                           2.10 ms     500 MB/s  18.32x
+
+utf8ToBytes mixed 1MB
+  Buffer view                       989.24 µs    1060 MB/s  1.00x
+  current-browser (TextEncoder)       1.05 ms     995 MB/s  1.07x
+  pool js encode                      1.07 ms     982 MB/s  1.08x
+  pool encodeInto                     1.08 ms     970 MB/s  1.09x
+  current-node (Buffer+copy)          1.12 ms     940 MB/s  1.13x
+  TextEncoder encodeInto              1.17 ms     894 MB/s  1.19x
+  js encode                           2.58 ms     407 MB/s  2.60x
+
+bytesToUtf8 ascii 16B
+  current-browser (TextDecoder)         73 ns     221 MB/s  1.00x
+  current-node (StringDecoder)         109 ns     147 MB/s  1.50x
+  Buffer toString                      202 ns      79 MB/s  2.79x
+
+bytesToUtf8 mixed 16B
+  current-browser (TextDecoder)        150 ns     106 MB/s  1.00x
+  current-node (StringDecoder)         214 ns      75 MB/s  1.42x
+  Buffer toString                      296 ns      54 MB/s  1.97x
+
+bytesToUtf8 ascii 64B
+  current-browser (TextDecoder)         87 ns     732 MB/s  1.00x
+  current-node (StringDecoder)         126 ns     508 MB/s  1.44x
+  Buffer toString                      213 ns     300 MB/s  2.44x
+
+bytesToUtf8 mixed 64B
+  current-browser (TextDecoder)        263 ns     244 MB/s  1.00x
+  current-node (StringDecoder)         310 ns     207 MB/s  1.18x
+  Buffer toString                      401 ns     160 MB/s  1.53x
+
+bytesToUtf8 ascii 256B
+  current-browser (TextDecoder)        118 ns    2161 MB/s  1.00x
+  current-node (StringDecoder)         154 ns    1664 MB/s  1.30x
+  Buffer toString                      241 ns    1063 MB/s  2.03x
+
+bytesToUtf8 mixed 256B
+  current-browser (TextDecoder)        471 ns     544 MB/s  1.00x
+  current-node (StringDecoder)         520 ns     493 MB/s  1.10x
+  Buffer toString                      615 ns     416 MB/s  1.31x
+
+bytesToUtf8 ascii 1KB
+  current-browser (TextDecoder)        250 ns    4096 MB/s  1.00x
+  current-node (StringDecoder)         310 ns    3308 MB/s  1.24x
+  Buffer toString                      403 ns    2543 MB/s  1.61x
+
+bytesToUtf8 mixed 1KB
+  current-browser (TextDecoder)       1.37 µs     750 MB/s  1.00x
+  current-node (StringDecoder)        1.43 µs     715 MB/s  1.05x
+  Buffer toString                     1.53 µs     670 MB/s  1.12x
+
+bytesToUtf8 ascii 1MB
+  Buffer toString                   116.90 µs    8970 MB/s  1.00x
+  current-node (StringDecoder)      119.38 µs    8784 MB/s  1.02x
+  current-browser (TextDecoder)     121.80 µs    8609 MB/s  1.04x
+
+bytesToUtf8 mixed 1MB
+  Buffer toString                     1.10 ms     953 MB/s  1.00x
+  current-browser (TextDecoder)       1.13 ms     927 MB/s  1.03x
+  current-node (StringDecoder)        1.13 ms     925 MB/s  1.03x
+
+bytesToBigInt random 16B
+  reverse + native toHex               382 ns      42 MB/s  1.00x
+  reverse + js hex                     599 ns      27 MB/s  1.57x
+  current-browser (shift loop)        1.39 µs      12 MB/s  3.64x
+
+bytesToBigInt random 64B
+  reverse + native toHex               690 ns      93 MB/s  1.00x
+  reverse + js hex                    1.65 µs      39 MB/s  2.39x
+  current-browser (shift loop)        6.87 µs       9 MB/s  9.97x
+
+bytesToBigInt random 1KB
+  reverse + native toHex              7.01 µs     146 MB/s  1.00x
+  reverse + js hex                   21.66 µs      47 MB/s  3.09x
+  current-browser (shift loop)      342.20 µs       3 MB/s  48.82x
