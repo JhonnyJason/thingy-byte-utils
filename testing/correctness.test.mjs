@@ -1,7 +1,7 @@
-// Correctness tests for every entry point - run: node --test testing/
+// Correctness tests for every entry point - run: node --test testing/, browsers: node testing/correctness-browsers.mjs
+// standard globals only, besides node:test and node:assert (shimmed in browsers by testing/browser/)
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { randomBytes } from "node:crypto"
 import * as nativeImpl from "../output/index.js"
 
 // load a second instance with the native hex functions and isWellFormed hidden, to cover the JS fallbacks
@@ -23,6 +23,12 @@ for (const [obj, key, desc] of codecs) Object.defineProperty(obj, key, desc)
 const impls = { "native": nativeImpl, "fallback": fallbackImpl, "no codec": noCodecImpl }
 
 const u8 = (...bytes) => new Uint8Array(bytes)
+const randomBytes = (n) => crypto.getRandomValues(new Uint8Array(n))
+const refHex = (bytes) => Array.from(bytes, (x) => x.toString(16).padStart(2, "0")).join("")
+const refEncoder = new TextEncoder()
+const utf8Ref = (s) => refEncoder.encode(s)
+// browsers have no Buffer - a copy then only tests the plain Uint8Array again
+const asBuffer = globalThis.Buffer ? (x) => Buffer.from(x) : (x) => x.slice()
 // a view with offset into a larger buffer - catches code that ignores byteOffset
 const offsetView = (bytes) => {
     const backing = new Uint8Array(bytes.length + 8).fill(0xee)
@@ -65,7 +71,7 @@ for (const [name, b] of Object.entries(impls)) {
             test("bytesToHex accepts ArrayBuffer, Buffer, offset view", () => {
                 const bytes = u8(0xde, 0xad, 0xbe, 0xef)
                 assert.equal(b.bytesToHex(bytes.buffer), "deadbeef")
-                assert.equal(b.bytesToHex(Buffer.from(bytes)), "deadbeef")
+                assert.equal(b.bytesToHex(asBuffer(bytes)), "deadbeef")
                 assert.equal(b.bytesToHex(offsetView(bytes)), "deadbeef")
             })
             test("hexToBytes basic", () => {
@@ -94,7 +100,7 @@ for (const [name, b] of Object.entries(impls)) {
                 for (let n = 0; n <= 300; n++) {
                     const bytes = new Uint8Array(randomBytes(n))
                     const hex = b.bytesToHex(bytes)
-                    assert.equal(hex, Buffer.from(bytes).toString("hex"))
+                    assert.equal(hex, refHex(bytes))
                     assert.deepEqual(b.hexToBytes(hex), bytes)
                 }
             })
@@ -102,7 +108,7 @@ for (const [name, b] of Object.entries(impls)) {
 
         describe("utf8", () => {
             const text = "HelloWörld! 👋 ∑ 日本"
-            const textBytes = new Uint8Array(Buffer.from(text, "utf8"))
+            const textBytes = utf8Ref(text)
             test("utf8ToBytes multi-byte", () => {
                 const r = b.utf8ToBytes(text)
                 assert.ok(r instanceof Uint8Array)
@@ -112,7 +118,7 @@ for (const [name, b] of Object.entries(impls)) {
             test("bytesToUtf8 accepts Uint8Array, ArrayBuffer, Buffer, offset view", () => {
                 assert.equal(b.bytesToUtf8(textBytes), text)
                 assert.equal(b.bytesToUtf8(textBytes.slice().buffer), text)
-                assert.equal(b.bytesToUtf8(Buffer.from(textBytes)), text)
+                assert.equal(b.bytesToUtf8(asBuffer(textBytes)), text)
                 assert.equal(b.bytesToUtf8(offsetView(textBytes)), text)
             })
             test("bytesToUtf8 empty", () => assert.equal(b.bytesToUtf8(u8()), ""))
@@ -137,7 +143,7 @@ for (const [name, b] of Object.entries(impls)) {
             })
             test("bytesToUtf8 decodes the limits", () => {
                 const s = "\x00\x7f\x80\u07ff\u0800\ud7ff\ue000\uffff\u{10000}\u{10ffff}"
-                assert.equal(b.bytesToUtf8(new Uint8Array(Buffer.from(s, "utf8"))), s)
+                assert.equal(b.bytesToUtf8(utf8Ref(s)), s)
             })
             test("a leading BOM survives both ways", () => {
                 const bom = u8(0xef, 0xbb, 0xbf, 0x41)
@@ -213,7 +219,7 @@ for (const [name, b] of Object.entries(impls)) {
             test("accepts ArrayBuffer, Buffer, offset view", () => {
                 const bytes = u8(0x00, 0x44, 0x32, 0x14, 0xc7)
                 assert.equal(b.bytesToUvy(bytes.slice().buffer), "01234567")
-                assert.equal(b.bytesToUvy(Buffer.from(bytes)), "01234567")
+                assert.equal(b.bytesToUvy(asBuffer(bytes)), "01234567")
                 assert.equal(b.bytesToUvy(offsetView(bytes)), "01234567")
             })
             test("roundtrip lengths 0..300 and above the pool limit", () => {
@@ -239,7 +245,7 @@ for (const [name, b] of Object.entries(impls)) {
             test("accepts ArrayBuffer, Buffer, offset view", () => {
                 const bytes = u8(1, 2, 3)
                 assert.equal(b.bytesToBigInt(bytes.slice().buffer), 0x030201n)
-                assert.equal(b.bytesToBigInt(Buffer.from(bytes)), 0x030201n)
+                assert.equal(b.bytesToBigInt(asBuffer(bytes)), 0x030201n)
                 assert.equal(b.bytesToBigInt(offsetView(bytes)), 0x030201n)
             })
             test("does not mutate the input", () => {
@@ -249,7 +255,7 @@ for (const [name, b] of Object.entries(impls)) {
             })
             test("no bytes-taking function mutates its input, small and large", () => {
                 for (const n of [3, 5000]) {
-                    const bytes = new Uint8Array(Buffer.from("héllo".repeat(n)))
+                    const bytes = utf8Ref("héllo".repeat(n))
                     const copy = bytes.slice()
                     for (const fn of [b.bytesToHex, b.bytesToUtf8, b.bytesToUvy, b.bytesToBigInt]) {
                         fn(bytes)
@@ -280,7 +286,7 @@ for (const [name, b] of Object.entries(impls)) {
                 for (const n of [1, 31, 32, 33, 1365, 1366, 5000]) {
                     for (const unit of ["a", "ö", "日", "👋"]) {
                         const s = unit.repeat(n).slice(0, n).toWellFormed() // an odd cut through 👋 leaves a lone surrogate
-                        assert.deepEqual(b.utf8ToBytes(s), new Uint8Array(Buffer.from(s, "utf8")), `${unit} x${n}`)
+                        assert.deepEqual(b.utf8ToBytes(s), utf8Ref(s), `${unit} x${n}`)
                     }
                 }
             })
@@ -302,7 +308,7 @@ for (const [name, b] of Object.entries(impls)) {
             const fills = [0, 40, 2000].map((n) => "a".repeat(n))
             for (const [label, s] of Object.entries(valid)) {
                 test(label, () => {
-                    for (const f of fills) assert.deepEqual(b.utf8ToBytes(f + s), new Uint8Array(Buffer.from(f + s, "utf8")))
+                    for (const f of fills) assert.deepEqual(b.utf8ToBytes(f + s), utf8Ref(f + s))
                 })
             }
             for (const [label, s] of Object.entries(lone)) {
@@ -344,7 +350,7 @@ for (const [name, b] of Object.entries(impls)) {
                 structuredClone(r.buffer, { transfer: [r.buffer] })
                 assert.equal(r.length, 0) // the view is gone with its block
                 assert.deepEqual([...b.hexToBytes("ccdd")], [0xcc, 0xdd])
-                assert.deepEqual(b.utf8ToBytes("héllo"), new Uint8Array(Buffer.from("héllo")))
+                assert.deepEqual(b.utf8ToBytes("héllo"), utf8Ref("héllo"))
             })
             test("a detached pool recovers for an empty result at offset 0", () => {
                 b.setPoolSize(8192)
@@ -356,14 +362,14 @@ for (const [name, b] of Object.entries(impls)) {
         })
 
         describe("setPoolSize", () => {
-            // every decoder, small and large, compared with Buffer
+            // every decoder, small and large, compared with a reference
             const decodeAll = (n) => {
                 const bytes = new Uint8Array(randomBytes(n))
-                const s = Buffer.from(bytes).toString("base64")
+                const s = refHex(bytes)
                 return [
                     [b.hexToBytes(b.bytesToHex(bytes)), bytes],
                     [b.uvyToBytes(b.bytesToUvy(bytes)), bytes],
-                    [b.utf8ToBytes(s), new Uint8Array(Buffer.from(s))],
+                    [b.utf8ToBytes(s), utf8Ref(s)],
                 ]
             }
             const withSize = (size, fn) => {
@@ -399,6 +405,94 @@ for (const [name, b] of Object.entries(impls)) {
                     for (const r of results) assert.equal(r.buffer.byteLength, r.length)
                     assert.equal(new Set(results.map((r) => r.buffer)).size, results.length)
                 })
+            })
+            test("an invalid size throws a RangeError and changes nothing", () => {
+                withSize(64, () => {
+                    for (const bad of [-1, 1.5, NaN, Infinity, 2 ** 53, "64", null, undefined, {}]) {
+                        assert.throws(() => b.setPoolSize(bad), RangeError, String(bad))
+                        assert.equal(b.hexToBytes("aabb").buffer.byteLength, 64, String(bad))
+                        for (const n of [1, 33, 5000]) for (const [r, expected] of decodeAll(n)) assert.deepEqual(r, expected)
+                    }
+                })
+            })
+        })
+
+        describe("errors leave the pool intact", () => {
+            const failing = {
+                "hex": () => b.hexToBytes("aabbzz"), "uvy": () => b.uvyToBytes("0000000w"),
+                "utf8 JS encoder": () => b.utf8ToBytes("a\ud800"), "utf8 encodeInto": () => b.utf8ToBytes("a".repeat(40) + "\ud800"),
+            }
+            for (const [label, fail] of Object.entries(failing)) {
+                test(label, () => {
+                    const kept = [b.hexToBytes("0102"), b.uvyToBytes("7y"), b.utf8ToBytes("hi")]
+                    const copies = kept.map((r) => r.slice())
+                    assert.throws(fail)
+                    kept.forEach((r, i) => assert.deepEqual(r, copies[i]))
+                    assert.deepEqual([...b.hexToBytes("0304")], [3, 4])
+                    assert.deepEqual([...b.utf8ToBytes("ok")], [0x6f, 0x6b])
+                })
+            }
+        })
+
+        // every UTF-16 code unit / byte pattern against a reference - the native and JS paths must agree
+        describe("exhaustive against a reference", () => {
+            // the result, or the error class - so results and errors compare in one deepEqual
+            const outcome = (fn) => { try { return [...fn()] } catch (e) { return e.constructor.name } }
+            const hexOk = new Set("0123456789abcdefABCDEF")
+            const uvyOk = new Set(uvyRefChars + uvyRefChars.toUpperCase())
+            test("hexToBytes: every code unit as first and second digit", () => {
+                for (let c = 0; c < 0x10000; c++) {
+                    const ch = String.fromCharCode(c)
+                    for (const hex of [ch + "a", "a" + ch]) {
+                        const expected = hexOk.has(ch) ? [parseInt(hex, 16)] : "SyntaxError"
+                        assert.deepEqual(outcome(() => b.hexToBytes(hex)), expected, `U+${c.toString(16)}`)
+                    }
+                }
+            })
+            test("uvyToBytes: every code unit in the head and in a full block", () => {
+                // ſ (U+017F) and K (U+212A, Kelvin) case-map onto alphabet letters but are not uvy chars
+                for (let c = 0; c < 0x10000; c++) {
+                    const ch = String.fromCharCode(c)
+                    for (const s of [ch, "0000000" + ch]) {
+                        const expected = uvyOk.has(ch) ? [...refUvyToBytes(s)] : "SyntaxError"
+                        assert.deepEqual(outcome(() => b.uvyToBytes(s)), expected, `U+${c.toString(16)}`)
+                    }
+                }
+            })
+            test("bytesToUtf8: all 1- and 2-byte inputs, 3- and 4-byte inputs around the boundaries", () => {
+                const oracle = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
+                const check = (bytes) => {
+                    let expected
+                    try { expected = oracle.decode(bytes) } catch (e) { expected = e.constructor.name }
+                    let actual
+                    try { actual = b.bytesToUtf8(bytes) } catch (e) { actual = e.constructor.name }
+                    assert.equal(actual, expected, [...bytes].map((x) => x.toString(16)).join(" "))
+                }
+                for (let x = 0; x < 256; x++) {
+                    check(u8(x))
+                    for (let y = 0; y < 256; y++) check(u8(x, y))
+                }
+                const edges = [0x00, 0x7f, 0x80, 0x8f, 0x90, 0x9f, 0xa0, 0xbf, 0xc0, 0xff]
+                for (let x = 0xe0; x < 0x100; x++) for (let y = 0; y < 256; y++) for (const z of edges) {
+                    check(u8(x, y, z))
+                    check(u8(x, y, z, 0x80))
+                }
+            })
+            test("utf8ToBytes: random strings with lone surrogates across the thresholds", () => {
+                // biased to the interesting ranges: ASCII, 2-byte, 3-byte, high and low surrogates
+                const pick = [[0, 0x80], [0x80, 0x800], [0x800, 0xd800], [0xd800, 0xdc00], [0xdc00, 0xe000], [0xe000, 0x10000]]
+                for (let i = 0; i < 3000; i++) {
+                    const len = [1, 2, 31, 32, 33, 1365, 1366][i % 7]
+                    const r = randomBytes(len * 3)
+                    let s = ""
+                    for (let k = 0; k < len; k++) {
+                        // mostly ASCII, so lone surrogates are not in every string
+                        const [lo, hi] = r[k] < 200 ? pick[0] : pick[r[k] % 6]
+                        s += String.fromCharCode(lo + ((r[len + k] << 8 | r[2 * len + k]) % (hi - lo)))
+                    }
+                    const expected = s.isWellFormed() ? [...utf8Ref(s)] : "TypeError"
+                    assert.deepEqual(outcome(() => b.utf8ToBytes(s)), expected, JSON.stringify(s.slice(0, 40)))
+                }
             })
         })
     })

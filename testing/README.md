@@ -1,7 +1,9 @@
 # Testing
 
 ## Files
-- `correctness.test.mjs` - correctness of every entry point in `output/`. Known bugs run as `todo`.
+- `correctness.test.mjs` - correctness of every entry point in `output/`. Known bugs run as `todo`. Standard globals only, besides `node:test` and `node:assert/strict`.
+- `correctness-browsers.mjs` - runs `correctness.test.mjs` in headless browsers. `browser/` maps `node:test` and `node:assert/strict` to small shims via an import map.
+- `browser-runner.mjs` - serves a page plus `testing/` and `output/` to a headless browser and collects the POSTed result. Used by both browser scripts.
 - `bench.mjs` - runtime-agnostic benchmark of candidate implementations per operation. Every candidate is cross-checked against the first one before timing.
 - `bench-pool.mjs` - the shipped `output/` per pool block size (one module instance each), plus the memory waste per block size.
 - `bench-browsers.mjs` - serves `bench.mjs` to a browser and collects the results.
@@ -9,7 +11,8 @@
 
 ## Run
 ```sh
-node --test testing/          # also: bun test testing/
+node --test testing/          # also: bun test testing/, deno test -A testing/correctness.test.mjs
+node testing/correctness-browsers.mjs [chromium] [firefox] [manual]
 node testing/bench.mjs [op]   # also: deno run / bun - op e.g. hexToBytes
 node testing/bench-pool.mjs   # also: deno run / bun
 node testing/bench-browsers.mjs firefox
@@ -66,3 +69,7 @@ Alternatives tried (pool, 32-1365 chars, ascii/latin/mixed/cjk): skipping the ch
 - Bun (JSC): no pool is fastest for small results (`hexToBytes` 16 B: 37 ns vs 154-165 ns, `utf8ToBytes` 64 B: 84 vs 228-258 ns), the `subarray` view costs more than the allocation. The block size makes no difference there.
 - Waste: the tail of a replaced block is always smaller than the largest pooled result, so larger blocks waste a smaller share (results of one odd size: 700 B wastes 31% of a 2 KB block, 5.5% of 8 KB; 3000 B wastes 27% of 8 KB). The real cost of a larger block: one kept small result pins the whole block, and every module instance holds one block.
 - Recommendation (to confirm): 8 KB stays the default. It pools strings up to 1365 chars and hex/uvy results up to 4 KB, the same block size as Node's Buffer. 16 KB only helps 1-2.7 KB strings and doubles what a kept result pins. 2/4 KB lose 3-4x for strings from about 340/680 chars on V8.
+
+## Correctness 2026-10-30
+Passing everywhere (174 tests: 58 each for the native, no native hex and no codec instances): Node 26.12, Bun 1.4.4, Deno 2.9.8, Chromium 156, Firefox 159. The exhaustive tests (every UTF-16 code unit for hex/uvy, every 1-2 byte UTF-8 input) take about 4 s per instance.
+Shim names must not match Node's test file patterns (`*-test.mjs`, `test-*.mjs`), or `node --test testing/` runs them.
