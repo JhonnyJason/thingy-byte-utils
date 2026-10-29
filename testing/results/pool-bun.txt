@@ -1,0 +1,198 @@
+## bun 1.4.4
+
+hexToBytes  16B
+  0 (no pool)                           37 ns     427 MB/s  1.00x
+  16 KB                                154 ns     104 MB/s  4.11x
+  2 KB                                 156 ns     102 MB/s  4.17x
+  8 KB                                 157 ns     102 MB/s  4.19x
+  4 KB                                 165 ns      97 MB/s  4.39x
+
+hexToBytes  64B
+  0 (no pool)                           67 ns     955 MB/s  1.00x
+  16 KB                                188 ns     341 MB/s  2.80x
+  8 KB                                 199 ns     322 MB/s  2.96x
+  2 KB                                 207 ns     309 MB/s  3.09x
+  4 KB                                 214 ns     299 MB/s  3.20x
+
+hexToBytes  256B
+  0 (no pool)                          153 ns    1675 MB/s  1.00x
+  16 KB                                309 ns     829 MB/s  2.02x
+  8 KB                                 314 ns     815 MB/s  2.06x
+  4 KB                                 327 ns     782 MB/s  2.14x
+  2 KB                                 350 ns     730 MB/s  2.29x
+
+hexToBytes  1KB
+  0 (no pool)                          593 ns    1728 MB/s  1.00x
+  16 KB                                717 ns    1428 MB/s  1.21x
+  8 KB                                 751 ns    1363 MB/s  1.27x
+  4 KB                                 777 ns    1318 MB/s  1.31x
+  2 KB                                 909 ns    1127 MB/s  1.53x
+
+hexToBytes  2KB
+  0 (no pool)                         1.05 µs    1946 MB/s  1.00x
+  2 KB                                1.12 µs    1832 MB/s  1.06x
+  16 KB                               1.25 µs    1640 MB/s  1.19x
+  8 KB                                1.31 µs    1559 MB/s  1.25x
+  4 KB                                1.52 µs    1344 MB/s  1.45x
+
+hexToBytes  4KB
+  2 KB                                1.96 µs    2091 MB/s  1.00x
+  4 KB                                1.99 µs    2060 MB/s  1.01x
+  0 (no pool)                         2.01 µs    2036 MB/s  1.03x
+  16 KB                               2.30 µs    1784 MB/s  1.17x
+  8 KB                                2.46 µs    1666 MB/s  1.25x
+
+hexToBytes  8KB
+  4 KB                                3.72 µs    2205 MB/s  1.00x
+  0 (no pool)                         3.77 µs    2171 MB/s  1.02x
+  8 KB                                3.80 µs    2158 MB/s  1.02x
+  2 KB                                3.87 µs    2115 MB/s  1.04x
+  16 KB                               4.34 µs    1887 MB/s  1.17x
+
+uvyToBytes  16B
+  0 (no pool)                           71 ns     224 MB/s  1.00x
+  4 KB                                 153 ns     105 MB/s  2.15x
+  2 KB                                 156 ns     102 MB/s  2.19x
+  8 KB                                 157 ns     102 MB/s  2.20x
+  16 KB                                163 ns      98 MB/s  2.28x
+
+uvyToBytes  64B
+  0 (no pool)                          232 ns     276 MB/s  1.00x
+  8 KB                                 316 ns     202 MB/s  1.36x
+  16 KB                                328 ns     195 MB/s  1.42x
+  2 KB                                 338 ns     189 MB/s  1.46x
+  4 KB                                 346 ns     185 MB/s  1.49x
+
+uvyToBytes  256B
+  0 (no pool)                          747 ns     343 MB/s  1.00x
+  4 KB                                 898 ns     285 MB/s  1.20x
+  8 KB                                 899 ns     285 MB/s  1.20x
+  2 KB                                 929 ns     275 MB/s  1.24x
+  16 KB                                965 ns     265 MB/s  1.29x
+
+uvyToBytes  1KB
+  0 (no pool)                         2.86 µs     358 MB/s  1.00x
+  4 KB                                3.14 µs     327 MB/s  1.10x
+  8 KB                                3.38 µs     303 MB/s  1.18x
+  16 KB                               3.41 µs     300 MB/s  1.19x
+  2 KB                                3.42 µs     299 MB/s  1.20x
+
+uvyToBytes  2KB
+  0 (no pool)                         5.64 µs     363 MB/s  1.00x
+  4 KB                                6.18 µs     331 MB/s  1.09x
+  8 KB                                6.22 µs     329 MB/s  1.10x
+  2 KB                                6.31 µs     325 MB/s  1.12x
+  16 KB                               6.40 µs     320 MB/s  1.13x
+
+uvyToBytes  4KB
+  0 (no pool)                        11.11 µs     369 MB/s  1.00x
+  2 KB                               11.84 µs     346 MB/s  1.07x
+  8 KB                               11.98 µs     342 MB/s  1.08x
+  4 KB                               12.62 µs     324 MB/s  1.14x
+  16 KB                              12.97 µs     316 MB/s  1.17x
+
+uvyToBytes  8KB
+  0 (no pool)                        21.81 µs     376 MB/s  1.00x
+  8 KB                               23.41 µs     350 MB/s  1.07x
+  4 KB                               24.08 µs     340 MB/s  1.10x
+  2 KB                               25.14 µs     326 MB/s  1.15x
+  16 KB                              26.71 µs     307 MB/s  1.22x
+
+bytesToUvy  16B
+  0 (no pool)                          160 ns     100 MB/s  1.00x
+  8 KB                                 217 ns      74 MB/s  1.36x
+  2 KB                                 228 ns      70 MB/s  1.42x
+  4 KB                                 230 ns      70 MB/s  1.44x
+  16 KB                                235 ns      68 MB/s  1.47x
+
+bytesToUvy  64B
+  0 (no pool)                          283 ns     226 MB/s  1.00x
+  8 KB                                 325 ns     197 MB/s  1.15x
+  2 KB                                 328 ns     195 MB/s  1.16x
+  4 KB                                 331 ns     194 MB/s  1.17x
+  16 KB                                334 ns     191 MB/s  1.18x
+
+bytesToUvy  256B
+  0 (no pool)                          651 ns     393 MB/s  1.00x
+  16 KB                                657 ns     389 MB/s  1.01x
+  4 KB                                 661 ns     387 MB/s  1.02x
+  2 KB                                 673 ns     381 MB/s  1.03x
+  8 KB                                 707 ns     362 MB/s  1.09x
+
+bytesToUvy  1KB
+  16 KB                               2.20 µs     465 MB/s  1.00x
+  8 KB                                2.24 µs     457 MB/s  1.02x
+  4 KB                                2.26 µs     454 MB/s  1.03x
+  0 (no pool)                         2.57 µs     399 MB/s  1.17x
+  2 KB                                2.64 µs     388 MB/s  1.20x
+
+bytesToUvy  2KB
+  16 KB                               4.04 µs     507 MB/s  1.00x
+  8 KB                                4.22 µs     486 MB/s  1.04x
+  4 KB                                4.71 µs     434 MB/s  1.17x
+  2 KB                                4.93 µs     415 MB/s  1.22x
+  0 (no pool)                         5.00 µs     409 MB/s  1.24x
+
+bytesToUvy  4KB
+  16 KB                               7.78 µs     526 MB/s  1.00x
+  4 KB                                8.65 µs     473 MB/s  1.11x
+  2 KB                                8.82 µs     464 MB/s  1.13x
+  0 (no pool)                         8.92 µs     459 MB/s  1.15x
+  8 KB                                9.00 µs     455 MB/s  1.16x
+
+bytesToUvy  8KB
+  4 KB                               16.32 µs     502 MB/s  1.00x
+  16 KB                              17.12 µs     479 MB/s  1.05x
+  2 KB                               17.21 µs     476 MB/s  1.05x
+  8 KB                               17.64 µs     464 MB/s  1.08x
+  0 (no pool)                        17.65 µs     464 MB/s  1.08x
+
+utf8ToBytes  16B
+  0 (no pool)                           73 ns     218 MB/s  1.00x
+  16 KB                                127 ns     126 MB/s  1.73x
+  8 KB                                 127 ns     126 MB/s  1.74x
+  4 KB                                 129 ns     124 MB/s  1.76x
+  2 KB                                 137 ns     116 MB/s  1.88x
+
+utf8ToBytes  64B
+  0 (no pool)                           84 ns     760 MB/s  1.00x
+  8 KB                                 228 ns     280 MB/s  2.71x
+  16 KB                                235 ns     272 MB/s  2.79x
+  4 KB                                 237 ns     270 MB/s  2.81x
+  2 KB                                 258 ns     248 MB/s  3.07x
+
+utf8ToBytes  256B
+  0 (no pool)                          106 ns    2408 MB/s  1.00x
+  16 KB                                288 ns     888 MB/s  2.71x
+  8 KB                                 289 ns     886 MB/s  2.72x
+  4 KB                                 327 ns     782 MB/s  3.08x
+  2 KB                                 375 ns     682 MB/s  3.53x
+
+utf8ToBytes  1KB
+  0 (no pool)                          327 ns    3133 MB/s  1.00x
+  2 KB                                 334 ns    3070 MB/s  1.02x
+  4 KB                                 396 ns    2586 MB/s  1.21x
+  16 KB                                458 ns    2237 MB/s  1.40x
+  8 KB                                 613 ns    1672 MB/s  1.87x
+
+utf8ToBytes  2KB
+  2 KB                                 517 ns    3959 MB/s  1.00x
+  0 (no pool)                          540 ns    3790 MB/s  1.04x
+  4 KB                                 555 ns    3693 MB/s  1.07x
+  8 KB                                 568 ns    3603 MB/s  1.10x
+  16 KB                                703 ns    2912 MB/s  1.36x
+
+utf8ToBytes  4KB
+  2 KB                                 915 ns    4479 MB/s  1.00x
+  16 KB                                930 ns    4406 MB/s  1.02x
+  0 (no pool)                          934 ns    4386 MB/s  1.02x
+  8 KB                                 936 ns    4375 MB/s  1.02x
+  4 KB                                 946 ns    4329 MB/s  1.03x
+
+utf8ToBytes  8KB
+  2 KB                                1.61 µs    5103 MB/s  1.00x
+  0 (no pool)                         1.64 µs    5002 MB/s  1.02x
+  16 KB                               1.77 µs    4619 MB/s  1.10x
+  4 KB                                1.89 µs    4332 MB/s  1.18x
+  8 KB                                2.08 µs    3934 MB/s  1.30x
+

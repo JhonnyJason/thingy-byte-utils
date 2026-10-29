@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Byte Utils Spec</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, li, td, th, .badge) { overflow-wrap: anywhere; }
+  code { font-size: .85em; background: var(--color-base-200); padding: 0 .3em; border-radius: 4px; }
+  .id { font-family: ui-monospace, monospace; font-size: .75rem; }
+</style>
+</head>
+<body class="bg-base-200 text-base-content">
+<main class="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+<header class="space-y-2">
+  <h1 class="text-3xl font-bold">thingy-byte-utils v0.1.1 spec</h1>
+  <p class="opacity-80">The rewritten <code>sources/ressources/README.md</code>, broken into clauses with stable IDs. Annotate any clause or text you want changed. D1-D4 are decided. There are 3 new open decisions at the bottom.</p>
+  <div class="flex flex-wrap gap-2 text-sm">
+    <span class="badge badge-success">changed in 0.1.1</span>
+    <span class="badge badge-ghost">unchanged from 0.1.0</span>
+    <span class="badge badge-warning">open decision</span>
+  </div>
+</header>
+
+<section class="card bg-base-100 shadow-sm"><div class="card-body">
+  <h2 class="card-title">API</h2>
+<pre class="text-sm overflow-x-auto bg-base-200 p-3 rounded"><code>bytesToHex( Bytes ) -> String        hexToBytes( String ) -> Uint8Array
+bytesToUtf8( Bytes ) -> String       utf8ToBytes( String ) -> Uint8Array
+bytesToUvy( Bytes ) -> String        uvyToBytes( String ) -> Uint8Array
+bytesToBigInt( Bytes ) -> BigInt
+
+Bytes = Uint8Array (incl. Buffer, offset views) | ArrayBuffer</code></pre>
+</div></section>
+
+<section class="card bg-base-100 shadow-sm"><div class="card-body space-y-3">
+  <h2 class="card-title">Guarantees</h2>
+  <div class="flex gap-3"><span class="id badge badge-success">G1</span><p><b>Same result on every runtime.</b> Same output and same error type for every input, including engines without native hex, <code>TextEncoder</code>/<code>TextDecoder</code> or <code>isWellFormed</code>.</p></div>
+  <div class="flex gap-3"><span class="id badge badge-success">G2</span><p><b>Strict decoding.</b> A string decoder accepts only the strings its encoder can produce. Everything else throws a <code>TypeError</code>. Nothing is silently replaced, dropped or ignored.</p></div>
+  <div class="flex gap-3"><span class="id badge badge-success">G3</span><p><b>Exact round trips.</b> Every encoding is 1:1, except the cases listed under each format (letter case in hex and uvy, bigint trailing zeros).</p></div>
+  <div class="flex gap-3"><span class="id badge badge-ghost">G4</span><p><b>Inputs are never modified.</b></p></div>
+  <div class="flex gap-3"><span class="id badge badge-ghost">G5</span><p><b>Argument types are not checked.</b> A wrong type is undefined behaviour: any error, or garbage. Only string <i>content</i> is validated.</p></div>
+</div></section>
+
+<section class="card bg-base-100 shadow-sm"><div class="card-body">
+  <h2 class="card-title">Errors: hex and uvy <code>SyntaxError</code>, utf8 <code>TypeError</code></h2>
+  <div class="overflow-x-auto"><table class="table table-sm">
+    <thead><tr><th>ID</th><th>Function</th><th>Throws when</th><th>v0.1.0 did</th></tr></thead>
+    <tbody>
+      <tr><td class="id">E1</td><td><code>hexToBytes</code></td><td>odd length</td><td>SyntaxError</td></tr>
+      <tr><td class="id">E2</td><td><code>hexToBytes</code></td><td>char not in <code>0-9 a-f A-F</code></td><td>native: SyntaxError, fallback: silently 0</td></tr>
+      <tr><td class="id">E3</td><td><code>utf8ToBytes</code></td><td>lone surrogate</td><td>replaced by U+FFFD</td></tr>
+      <tr><td class="id">E4</td><td><code>bytesToUtf8</code></td><td>invalid UTF-8 (overlong, encoded surrogate, &gt; U+10FFFF, truncated)</td><td>replaced by U+FFFD</td></tr>
+      <tr><td class="id">E5</td><td><code>uvyToBytes</code></td><td>length 1, 3 or 6 mod 8</td><td>SyntaxError</td></tr>
+      <tr><td class="id">E6</td><td><code>uvyToBytes</code></td><td>char not in the alphabet (either case)</td><td>silently 0</td></tr>
+      <tr><td class="id">E7</td><td><code>uvyToBytes</code></td><td>unused bits of the last char not 0</td><td>ignored</td></tr>
+    </tbody>
+  </table></div>
+  <p class="text-sm opacity-70">E1, E2, E5, E6 and E7 throw a <code>SyntaxError</code>, as native <code>fromHex</code> does. E3 and E4 throw a <code>TypeError</code>, as a fatal <code>TextDecoder</code> does. No rethrow.</p>
+</div></section>
+
+<section class="grid md:grid-cols-2 gap-4">
+  <div class="card bg-base-100 shadow-sm"><div class="card-body space-y-2">
+    <h2 class="card-title">hex</h2>
+    <p><span class="id">H1</span> Output: 2 lower case chars per byte, high nibble first, no prefix or separators.</p>
+    <p><span class="id">H2</span> Input: an even-length string of <code>0-9 a-f A-F</code>. <code>""</code> gives an empty array.</p>
+    <p><span class="id badge badge-warning">H3</span> Upper case is accepted, as native <code>fromHex</code> does. So hex is <b>not 1:1</b>: <code>"AB"</code> and <code>"ab"</code> both give <code>[0xab]</code>. See D1.</p>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body space-y-2">
+    <h2 class="card-title">utf8</h2>
+    <p><span class="id">U1</span> Encoding: the string must be well-formed UTF-16. No BOM is added.</p>
+    <p><span class="id">U2</span> Decoding: the bytes must be valid UTF-8 (fatal decoder).</p>
+    <p><span class="id badge badge-warning">U3</span> A leading BOM <code>EF BB BF</code> is kept as <code>"﻿"</code>, not stripped. The default <code>TextDecoder</code> strips it, which breaks 1:1. See D2.</p>
+    <p><span class="id">U4</span> For lossy conversion, use <code>s.toWellFormed()</code> or your own non-fatal decoder.</p>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body space-y-2">
+    <h2 class="card-title">uvy</h2>
+    <p><span class="id">V1</span> Alphabet <code>0123456789abcdefghijklmnoprstuvy</code>. The first 16 digits are the hex digits.</p>
+    <p><span class="id">V2</span> Bitstream, MSB first, 5 bits per char, the last char padded with 0 bits, no padding chars. 5 bytes ↔ 8 chars.</p>
+    <p><span class="id">V3</span> <code>ceil(n*8/5)</code> chars for <code>n</code> bytes. Output is lower case. Input may also be upper case (as in hex).</p>
+    <p><span class="id">V4</span> <code>"00"</code> gives <code>[0]</code>. <code>"01"</code>, <code>"02"</code> and <code>"03"</code> throw. 1:1 apart from letter case. Padding position: see D6.</p>
+  </div></div>
+  <div class="card bg-base-100 shadow-sm"><div class="card-body space-y-2">
+    <h2 class="card-title">bigint</h2>
+    <p><span class="id">B1</span> Unsigned little-endian. Empty in, <code>0n</code> out.</p>
+    <p><span class="id badge badge-warning">B2</span> <b>Not 1:1</b>, and there is no inverse: <code>[1]</code>, <code>[1,0]</code> and <code>[1,0,0]</code> all give <code>1n</code>. See D4.</p>
+  </div></div>
+</section>
+
+<section class="card bg-base-100 shadow-sm"><div class="card-body space-y-2">
+  <h2 class="card-title">Shared memory pool</h2>
+  <p><span class="id">P1</span> <code>hexToBytes</code>, <code>utf8ToBytes</code> and <code>uvyToBytes</code> return results of <b>4 KB or less</b> as views into a shared block. Larger results get their own buffer. <span class="badge badge-warning badge-sm">D3</span></p>
+  <p><span class="id">P2</span> Use the <code>Uint8Array</code>, never its <code>.buffer</code>. Don't assume <code>byteOffset</code> is 0.</p>
+  <p><span class="id">P3</span> <code>.slice()</code> gives you your own copy. Transferring <code>.buffer</code> detaches every other result in the same block.</p>
+  <p><span class="id">P4</span> The library never writes to a returned result again. Writing to your result changes only your result.</p>
+  <p><span class="id">P5</span> A small result you keep alive keeps its whole block alive (up to 8 KB).</p>
+  <p><span class="id">P6</span> Pool results start at a <code>byteOffset</code> that is a multiple of 8.</p>
+</div></div></section>
+
+<section class="card bg-base-100 shadow-sm"><div class="card-body">
+  <h2 class="card-title">Decided</h2>
+  <ul class="list-disc pl-5 space-y-1">
+    <li><b>D1</b> hex accepts upper case. <b>uvy accepts upper case too</b> (from your E6 note). Both are documented as the only case exception to 1:1.</li>
+    <li><b>D2</b> <code>ignoreBOM: true</code>: a leading BOM is kept.</li>
+    <li><b>D3</b> The README states exact pool numbers. <b>Answer on the pool size:</b> no, it was never measured. 8 KB was copied from Node's Buffer, and the benchmarks only compared pool vs. no pool. Point 5 now benchmarks 2, 4, 8 and 16 KB blocks.</li>
+    <li><b>D5</b> Errors follow the platform, no rethrow: hex and uvy throw <code>SyntaxError</code>, utf8 throws <code>TypeError</code>.</li>
+    <li><b>D7</b> Deferred: little-endian stays. <code>uvyToBigInt</code> waits until there is a real need.</li>
+    <li><b>D4</b> Document only. <code>uvyToBigInt</code>/<code>bigIntToUvy</code> and <code>uvyToHex</code>/<code>hexToUvy</code> went to <code>deferred.md</code>.</li>
+  </ul>
+</div></section>
+
+<section class="card bg-base-100 shadow-sm border border-warning" data-lavish-annotate="off"><div class="card-body space-y-8">
+  <h2 class="card-title">Open decision</h2>
+
+  
+
+  <form data-lavish-question="D6" class="space-y-2" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('d6'); if (v) window.lavish.queuePrompt('D6 uvy block structure: ' + v, { tag: 'choice', text: 'D6: ' + v, element: event.currentTarget, data: { question: 'D6', answer: v }, queueKey: 'D6' });">
+    <h3 class="font-semibold">D6 - uvy: full 8-char blocks only? <span class="badge badge-info badge-sm">verify performance first: sub-task 4</span></h3>
+    <p class="text-sm alert alert-info">Answer to your question: a block loop (5 bytes &harr; 8 chars with fixed shifts) is very likely faster than today's bit-by-bit accumulator. But partial blocks can use the same block loop and handle only the last (or first) block separately, which is one extra step per call. So I expect full-block-only to give no real speed gain. That is now a benchmark in sub-task 4, to run before deciding.</p>
+    <p class="text-sm"><b>The catch:</b> full 8-char blocks only means <b>the byte length must be a multiple of 5</b>. A 16-, 32- or 64-byte key or hash could not be encoded (32 % 5 = 2). Inside a full block, the order is already analogous to hex: 40 bits, most significant first.</p>
+    <p class="text-sm">1:1 is easy in every option: one comparison per call, on the char that holds the padding bits. So the real choice is <b>where a partial block's padding goes</b>:</p>
+    <div class="overflow-x-auto"><table class="table table-sm">
+      <thead><tr><th></th><th>Padding</th><th>Meaning of the string</th><th><code>[0xff]</code> →</th></tr></thead>
+      <tbody>
+        <tr><td>A</td><td>at the end (RFC 4648, as today)</td><td>a bitstream</td><td><code>"yt"</code></td></tr>
+        <tr><td>B</td><td>at the front</td><td>the big-endian number in base 32, <b>exactly as hex is the number in base 16</b></td><td><code>"7y"</code> (= 255)</td></tr>
+        <tr><td>C</td><td>none allowed</td><td>blocks only; bytes must be a multiple of 5</td><td>throws</td></tr>
+      </tbody>
+    </table></div>
+    <p class="text-sm">A and B cost the same and only differ for lengths that are not a multiple of 5. B is the closest analogue to hex, and it makes <code>bigIntToUvy</code> nearly free: <code>n.toString(32)</code> plus a char map (native base 32 uses <code>q</code>/<code>w</code>/<code>x</code>, we skip them).</p>
+    <label class="flex gap-2"><input type="radio" class="radio radio-sm" name="d6" value="B: padding at the front, uvy = base-32 numeral like hex - recommended"> B: padding at the front, uvy is a base-32 numeral like hex (recommended)</label>
+    <label class="flex gap-2"><input type="radio" class="radio radio-sm" name="d6" value="A: padding at the end (RFC 4648 bitstream, as today)"> A: padding at the end (as today)</label>
+    <label class="flex gap-2"><input type="radio" class="radio radio-sm" name="d6" value="C: full 8-char blocks only, bytes must be a multiple of 5"> C: full blocks only</label>
+    <button class="btn btn-sm btn-primary" type="submit">Queue answer</button>
+  </form>
+
+  
+</div></section>
+
+</main>
+
+</body>
+</html>

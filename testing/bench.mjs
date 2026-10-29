@@ -20,6 +20,8 @@ Array.from("0123456789abcdef").forEach((c) => {
 // charCode lookup - candidate for a faster pure-JS fallback
 const hexVal = new Uint8Array(128)
 Array.from("0123456789abcdef").forEach((c, i) => hexVal[c.charCodeAt(0)] = i)
+const hexValStrict = new Uint8Array(128).fill(0xff)
+Array.from("0123456789abcdef").forEach((c, i) => hexValStrict[c.charCodeAt(0)] = i)
 
 const asView = (buf) => new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
 const nodeBuf = (u8) => Buffer.from(u8.buffer, u8.byteOffset, u8.byteLength)
@@ -73,6 +75,12 @@ const uvyChars = "0123456789abcdefghijklmnoprstuvy"
 const uvyVal = new Uint8Array(128)
 for (let i = 0; i < 32; i++) uvyVal[uvyChars.charCodeAt(i)] = i
 const uvyCodes = Uint8Array.from(uvyChars, (c) => c.charCodeAt(0))
+const uvyValStrict = new Uint8Array(128).fill(0xff)
+for (let i = 0; i < 32; i++) uvyValStrict[uvyCodes[i]] = uvyValStrict[uvyChars.toUpperCase().charCodeAt(i)] = i
+const uvyDigit = (uvy, i) => {
+    const c = uvy.charCodeAt(i)
+    return c < 128 ? uvyValStrict[c] : 0xff
+}
 // first idea - string concat, collapses for large inputs on V8
 const jsBytesToUvy = (bytes) => {
     let r = "", acc = 0, bits = 0
@@ -114,6 +122,22 @@ const ops = {
             const r = commit(n)
             for (let i = 0, j = 0; j < n; i += 2, j++)
                 r[j] = (hexVal[hex.charCodeAt(i)] << 4) | hexVal[hex.charCodeAt(i + 1)]
+            return r
+        },
+        // v0.1.1: invalid chars throw - one flag, one check after the loop
+        "pool js charCode strict": (hex) => {
+            const n = hex.length >>> 1
+            if (n > POOL_MAX) return Uint8Array.fromHex(hex)
+            reserve(n)
+            const r = commit(n)
+            let bad = 0
+            for (let i = 0, j = 0; j < n; i += 2, j++) {
+                const c1 = hex.charCodeAt(i), c2 = hex.charCodeAt(i + 1)
+                const h = hexValStrict[c1 & 127], l = hexValStrict[c2 & 127]
+                bad |= c1 | c2 | h | l
+                r[j] = (h << 4) | l
+            }
+            if (bad > 127) throw new SyntaxError("hex string with invalid char")
             return r
         },
         ...hasSetFromHex && { "pool setFromHex": (hex) => {
@@ -170,6 +194,30 @@ const ops = {
             if (bits > 0) codes[j] = uvyCodes[(acc << (5 - bits)) & 31]
             return decoder.decode(codes)
         },
+        "block loop (shipped)": (bytes) => {
+            const head = bytes.length % 5
+            const headChars = (head * 8 + 4) / 5 | 0
+            const n = headChars + (bytes.length - head) / 5 * 8
+            let codes
+            if (n > POOL_MAX) codes = new Uint8Array(n)
+            else { reserve(n); codes = pool.subarray(poolOffset, poolOffset + n) }
+            let v = 0
+            for (let i = 0; i < head; i++) v = v * 256 + bytes[i]
+            for (let j = headChars - 1; j >= 0; j--, v = Math.floor(v / 32)) codes[j] = uvyCodes[v % 32]
+            for (let i = head, j = headChars; i < bytes.length; i += 5, j += 8) {
+                const hi = bytes[i]
+                const lo = bytes[i + 1] << 24 | bytes[i + 2] << 16 | bytes[i + 3] << 8 | bytes[i + 4]
+                codes[j] = uvyCodes[hi >>> 3]
+                codes[j + 1] = uvyCodes[(hi & 7) << 2 | lo >>> 30]
+                codes[j + 2] = uvyCodes[lo >>> 25 & 31]
+                codes[j + 3] = uvyCodes[lo >>> 20 & 31]
+                codes[j + 4] = uvyCodes[lo >>> 15 & 31]
+                codes[j + 5] = uvyCodes[lo >>> 10 & 31]
+                codes[j + 6] = uvyCodes[lo >>> 5 & 31]
+                codes[j + 7] = uvyCodes[lo & 31]
+            }
+            return decoder.decode(codes)
+        },
     },
     uvyToBytes: {
         "pool js accumulator": (uvy) => {
@@ -182,6 +230,31 @@ const ops = {
                 bits += 5
                 if (bits >= 8) { bits -= 8; r[j++] = acc >>> bits }
             }
+            return r
+        },
+        "block loop, strict (shipped)": (uvy) => {
+            const headChars = uvy.length & 7
+            let bad = 0, v = 0
+            for (let i = 0; i < headChars; i++) { const d = uvyDigit(uvy, i); bad |= d; v = v * 32 + d }
+            let head = headChars * 5 >>> 3
+            if (v >= 2 ** (head * 8) || uvy.length == 1) head++
+            const n = head + (uvy.length - headChars) / 8 * 5
+            let r
+            if (n > POOL_MAX) r = new Uint8Array(n)
+            else { reserve(n); r = commit(n) }
+            for (let j = head - 1; j >= 0; j--, v = Math.floor(v / 256)) r[j] = v % 256
+            for (let i = headChars, j = head; i < uvy.length; i += 8, j += 5) {
+                const d0 = uvyDigit(uvy, i), d1 = uvyDigit(uvy, i + 1), d2 = uvyDigit(uvy, i + 2), d3 = uvyDigit(uvy, i + 3)
+                const d4 = uvyDigit(uvy, i + 4), d5 = uvyDigit(uvy, i + 5), d6 = uvyDigit(uvy, i + 6), d7 = uvyDigit(uvy, i + 7)
+                bad |= d0 | d1 | d2 | d3 | d4 | d5 | d6 | d7
+                const lo = (d1 & 3) << 30 | d2 << 25 | d3 << 20 | d4 << 15 | d5 << 10 | d6 << 5 | d7
+                r[j] = d0 << 3 | d1 >>> 2
+                r[j + 1] = lo >>> 24
+                r[j + 2] = lo >>> 16
+                r[j + 3] = lo >>> 8
+                r[j + 4] = lo
+            }
+            if (bad > 31) throw new SyntaxError("uvy string with invalid char")
             return r
         },
     },
@@ -209,6 +282,7 @@ const textOfSize = (unit, n) => {
     return s
 }
 const sizes = [16, 64, 256, 1024, 1024 * 1024]
+const uvySizes = [15, 65, 255, 1025, 1024 * 1025]
 const inputsFor = {
     bytesToHex: () => sizes.map((n) => ["random", n, randomBytes(n)]),
     hexToBytes: () => sizes.map((n) => ["random", n, jsBytesToHex(randomBytes(n))]),
@@ -216,8 +290,9 @@ const inputsFor = {
         ["ascii", n, textOfSize("Hello World! ", n)],
         ["mixed", n, textOfSize("HelloWörld! 👋 日本 ", n)],
     ]),
-    bytesToUvy: () => sizes.map((n) => ["random", n, randomBytes(n)]),
-    uvyToBytes: () => sizes.map((n) => ["random", n, jsBytesToUvy(randomBytes(n))]),
+    // multiples of 5: no partial block, so the old (back-padded) and new (front-padded) format agree
+    bytesToUvy: () => uvySizes.map((n) => ["random", n, randomBytes(n)]),
+    uvyToBytes: () => uvySizes.map((n) => ["random", n, jsBytesToUvy(randomBytes(n))]),
     bytesToUtf8: () => inputsFor.utf8ToBytes().map(([kind, n, s]) => [kind, n, encoder.encode(s)]),
     // shift loop is O(n²) - 1 MB is pointless
     bytesToBigInt: () => [16, 64, 1024].map((n) => ["random", n, randomBytes(n)]),
@@ -231,7 +306,7 @@ const BATCH_MS = 30, BATCHES = 7
 // each candidate gets its own loop code, so its call site stays monomorphic
 // like in real use - one shared loop would go megamorphic and skew small inputs
 const loopBody = "let r; for (let i = 0; i < iters; i++) r = fn(input); return r"
-const measure = (fn, input) => {
+export const measure = (fn, input) => {
     const loop = new Function("fn", "input", "iters", loopBody)
     let iters = 1
     // grow the batch until it takes long enough for coarse browser timers
@@ -263,9 +338,10 @@ export const engine = globalThis.Bun ? `bun ${Bun.version}`
     : globalThis.process?.versions?.node ? `node ${process.versions.node} (v8 ${process.versions.v8})`
     : navigator.userAgent
 
-export const run = async (log = () => {}) => {
+export const run = async (log = () => {}, only) => {
     const results = []
     for (const [op, candidates] of Object.entries(ops)) {
+        if (only && op != only) continue
         for (const [input, size, data] of inputsFor[op]()) {
             const entries = Object.entries(candidates)
             const expected = entries[0][1](data)
@@ -300,4 +376,5 @@ export const format = ({ engine, results }) => {
     return lines.join("\n")
 }
 
-if (import.meta.main) console.log(format(await run()))
+// optional argument: run only this operation, e.g. hexToBytes
+if (import.meta.main) console.log(format(await run(undefined, globalThis.Deno?.args[0] ?? globalThis.process?.argv[2])))
