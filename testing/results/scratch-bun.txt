@@ -1,0 +1,64 @@
+## bun 1.4.4
+
+bytesToUvy  16B
+  scratch 0 (alloc)                    179 ns      90 MB/s  1.00x
+  scratch 64 K                         202 ns      79 MB/s  1.13x
+  scratch 4 K                          204 ns      78 MB/s  1.14x
+  scratch 1 K                          218 ns      73 MB/s  1.22x
+  scratch 16 K                         227 ns      71 MB/s  1.27x
+
+bytesToUvy  64B
+  scratch 0 (alloc)                    270 ns     237 MB/s  1.00x
+  scratch 16 K                         312 ns     205 MB/s  1.16x
+  scratch 4 K                          315 ns     203 MB/s  1.17x
+  scratch 1 K                          320 ns     200 MB/s  1.19x
+  scratch 64 K                         334 ns     192 MB/s  1.24x
+
+bytesToUvy  256B
+  scratch 0 (alloc)                    613 ns     418 MB/s  1.00x
+  scratch 1 K                          637 ns     402 MB/s  1.04x
+  scratch 16 K                         643 ns     398 MB/s  1.05x
+  scratch 64 K                         656 ns     390 MB/s  1.07x
+  scratch 4 K                          692 ns     370 MB/s  1.13x
+
+bytesToUvy  640B
+  scratch 64 K                        1.36 µs     472 MB/s  1.00x
+  scratch 4 K                         1.37 µs     468 MB/s  1.01x
+  scratch 1 K                         1.41 µs     455 MB/s  1.04x
+  scratch 16 K                        1.41 µs     454 MB/s  1.04x
+  scratch 0 (alloc)                   1.58 µs     406 MB/s  1.16x
+
+bytesToUvy  1KB
+  scratch 64 K                        2.19 µs     467 MB/s  1.00x
+  scratch 16 K                        2.30 µs     446 MB/s  1.05x
+  scratch 4 K                         2.38 µs     430 MB/s  1.09x
+  scratch 1 K                         2.62 µs     391 MB/s  1.19x
+  scratch 0 (alloc)                   2.82 µs     363 MB/s  1.28x
+
+bytesToUvy  2.5KB
+  scratch 4 K                         4.92 µs     521 MB/s  1.00x
+  scratch 16 K                        5.04 µs     508 MB/s  1.03x
+  scratch 1 K                         5.49 µs     467 MB/s  1.12x
+  scratch 0 (alloc)                   5.61 µs     456 MB/s  1.14x
+  scratch 64 K                        6.42 µs     399 MB/s  1.31x
+
+bytesToUvy  4KB
+  scratch 16 K                        7.60 µs     539 MB/s  1.00x
+  scratch 64 K                        7.62 µs     538 MB/s  1.00x
+  scratch 4 K                         8.47 µs     484 MB/s  1.11x
+  scratch 1 K                         8.94 µs     458 MB/s  1.18x
+  scratch 0 (alloc)                   9.92 µs     413 MB/s  1.30x
+
+bytesToUvy  10KB
+  scratch 64 K                       17.60 µs     582 MB/s  1.00x
+  scratch 16 K                       18.27 µs     560 MB/s  1.04x
+  scratch 0 (alloc)                  20.16 µs     508 MB/s  1.15x
+  scratch 1 K                        20.36 µs     503 MB/s  1.16x
+  scratch 4 K                        20.36 µs     503 MB/s  1.16x
+
+bytesToUvy  40KB
+  scratch 64 K                       71.31 µs     574 MB/s  1.00x
+  scratch 4 K                        80.82 µs     507 MB/s  1.13x
+  scratch 1 K                        81.68 µs     501 MB/s  1.15x
+  scratch 0 (alloc)                  81.96 µs     500 MB/s  1.15x
+  scratch 16 K                       82.94 µs     494 MB/s  1.16x

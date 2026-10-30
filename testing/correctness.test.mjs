@@ -61,8 +61,11 @@ const refUvyToBytes = (s) => {
     return r
 }
 
-for (const [name, b] of Object.entries(impls)) {
-    describe(name, () => {
+// every content test runs for the direct API and for a pooled instance
+const variants = (mod) => [["direct", mod], ["pooled", new mod.UnsafeMemPooled()]]
+
+for (const [name, mod] of Object.entries(impls)) for (const [variant, b] of variants(mod)) {
+    describe(`${name} ${variant}`, () => {
         describe("hex", () => {
             test("bytesToHex basic", () => {
                 assert.equal(b.bytesToHex(u8(0, 1, 15, 16, 171, 255)), "00010f10abff")
@@ -222,8 +225,8 @@ for (const [name, b] of Object.entries(impls)) {
                 assert.equal(b.bytesToUvy(asBuffer(bytes)), "01234567")
                 assert.equal(b.bytesToUvy(offsetView(bytes)), "01234567")
             })
-            test("roundtrip lengths 0..300 and above the pool limit", () => {
-                for (const n of [...Array(301).keys(), 4095, 4096, 4097, 20000]) {
+            test("roundtrip lengths 0..300, across the scratch and pool limits", () => {
+                for (const n of [...Array(301).keys(), 4095, 4096, 4097, 10239, 10240, 10241, 20000]) {
                     const bytes = new Uint8Array(randomBytes(n))
                     const uvy = b.bytesToUvy(bytes)
                     assert.equal(uvy.length, Math.ceil(n * 8 / 5))
@@ -270,6 +273,27 @@ for (const [name, b] of Object.entries(impls)) {
                     assert.equal(b.bytesToBigInt(bytes), refBigInt(bytes))
                 }
             })
+        })
+
+        // a Uint8Array over a shared or resizable buffer is still Bytes - WebIDL APIs like TextDecoder may reject it
+        describe("shared and resizable backing", () => {
+            const fill = (ab) => (new Uint8Array(ab).set([0x68, 0xc3, 0xa9, 0x21]), ab)
+            const backings = {
+                "SharedArrayBuffer": () => globalThis.SharedArrayBuffer && fill(new SharedArrayBuffer(4)),
+                "resizable ArrayBuffer": () => ArrayBuffer.prototype.resize && fill(new ArrayBuffer(4, { maxByteLength: 16 })),
+            }
+            for (const [label, make] of Object.entries(backings)) {
+                test(label, () => {
+                    if (!make()) return
+                    for (const bytes of [make(), new Uint8Array(make()), new Uint8Array(make()).subarray(1)]) {
+                        const plain = new Uint8Array(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)).slice()
+                        assert.equal(b.bytesToUtf8(bytes), b.bytesToUtf8(plain))
+                        assert.equal(b.bytesToHex(bytes), refHex(plain))
+                        assert.equal(b.bytesToUvy(bytes), refUvy(plain))
+                        assert.equal(b.bytesToBigInt(bytes), refBigInt(plain))
+                    }
+                })
+            }
         })
 
         describe("size paths", () => {
@@ -353,67 +377,11 @@ for (const [name, b] of Object.entries(impls)) {
                 assert.deepEqual(b.utf8ToBytes("héllo"), utf8Ref("héllo"))
             })
             test("a detached pool recovers for an empty result at offset 0", () => {
-                b.setPoolSize(8192)
+                const b = new mod.UnsafeMemPooled()
                 const r = b.hexToBytes("")
                 structuredClone(r.buffer, { transfer: [r.buffer] })
                 assert.equal(b.hexToBytes("").length, 0)
                 assert.deepEqual([...b.hexToBytes("ab")], [0xab])
-            })
-        })
-
-        describe("setPoolSize", () => {
-            // every decoder, small and large, compared with a reference
-            const decodeAll = (n) => {
-                const bytes = new Uint8Array(randomBytes(n))
-                const s = refHex(bytes)
-                return [
-                    [b.hexToBytes(b.bytesToHex(bytes)), bytes],
-                    [b.uvyToBytes(b.bytesToUvy(bytes)), bytes],
-                    [b.utf8ToBytes(s), utf8Ref(s)],
-                ]
-            }
-            const withSize = (size, fn) => {
-                try { b.setPoolSize(size); fn() } finally { b.setPoolSize(8192) }
-            }
-            test("results stay unchanged after setPoolSize", () => {
-                const kept = decodeAll(16)
-                const copies = kept.map(([r]) => r.slice())
-                for (const size of [0, 64, 65536, 8192]) {
-                    b.setPoolSize(size)
-                    decodeAll(16)
-                }
-                kept.forEach(([r], i) => assert.deepEqual(r, copies[i]))
-            })
-            test("sizes 0, 64, 64 KB and odd sizes work across the pool limit", () => {
-                for (const size of [0, 1, 63, 64, 65536]) withSize(size, () => {
-                    for (const n of [0, 1, 15, 31, 32, 33, 100, 5000, 40000]) {
-                        for (const [r, expected] of decodeAll(n)) assert.deepEqual(r, expected, `size ${size} n ${n}`)
-                    }
-                })
-            })
-            test("results above half the block size get their own buffer", () => {
-                withSize(64, () => {
-                    for (const [r] of decodeAll(33)) assert.equal(r.buffer.byteLength, r.length)
-                    const small = b.hexToBytes("aabb")
-                    assert.equal(small.buffer.byteLength, 64)
-                })
-            })
-            test("0 never returns a view of a shared buffer, not even for empty results", () => {
-                withSize(0, () => {
-                    const results = [...decodeAll(0), ...decodeAll(1), ...decodeAll(8)].map(([r]) => r)
-                    results.push(b.hexToBytes(""), b.uvyToBytes(""), b.utf8ToBytes(""))
-                    for (const r of results) assert.equal(r.buffer.byteLength, r.length)
-                    assert.equal(new Set(results.map((r) => r.buffer)).size, results.length)
-                })
-            })
-            test("an invalid size throws a RangeError and changes nothing", () => {
-                withSize(64, () => {
-                    for (const bad of [-1, 1.5, NaN, Infinity, 2 ** 53, "64", null, undefined, {}]) {
-                        assert.throws(() => b.setPoolSize(bad), RangeError, String(bad))
-                        assert.equal(b.hexToBytes("aabb").buffer.byteLength, 64, String(bad))
-                        for (const n of [1, 33, 5000]) for (const [r, expected] of decodeAll(n)) assert.deepEqual(r, expected)
-                    }
-                })
             })
         })
 
@@ -494,6 +462,83 @@ for (const [name, b] of Object.entries(impls)) {
                     assert.deepEqual(outcome(() => b.utf8ToBytes(s)), expected, JSON.stringify(s.slice(0, 40)))
                 }
             })
+        })
+    })
+}
+
+// the pool configuration, per implementation
+for (const [name, mod] of Object.entries(impls)) {
+    const P = mod.UnsafeMemPooled
+    // every decoder, small and large, compared with a reference
+    const decodeAll = (b, n) => {
+        const bytes = new Uint8Array(randomBytes(n))
+        const s = refHex(bytes)
+        return [
+            [b.hexToBytes(b.bytesToHex(bytes)), bytes],
+            [b.uvyToBytes(b.bytesToUvy(bytes)), bytes],
+            [b.utf8ToBytes(s), utf8Ref(s)],
+        ]
+    }
+    const blockSize = (b) => b.hexToBytes("aabb").buffer.byteLength
+
+    describe(`${name} UnsafeMemPooled`, () => {
+        test("the argument is the block size in KB, default 8", () => {
+            assert.equal(blockSize(new P()), 8192)
+            assert.equal(blockSize(new P(undefined)), 8192)
+            assert.equal(blockSize(new P(1)), 1024)
+            assert.equal(blockSize(new P(1024)), 1024 * 1024)
+        })
+        test("an invalid size throws a RangeError", () => {
+            for (const bad of [0, -1, 1025, 1.5, NaN, Infinity, 2 ** 53, "8", null, {}])
+                assert.throws(() => new P(bad), RangeError, String(bad))
+        })
+        test("sizes 1, 8 and 1024 work across the pool limit", () => {
+            for (const kb of [1, 8, 1024]) {
+                const b = new P(kb)
+                for (const n of [0, 1, 15, 31, 32, 33, 100, 5000, 40000]) {
+                    for (const [r, expected] of decodeAll(b, n)) assert.deepEqual(r, expected, `${kb} KB n ${n}`)
+                }
+            }
+        })
+        test("results above half the block size get their own buffer", () => {
+            const b = new P(1)
+            for (const [r] of decodeAll(b, 513)) assert.equal(r.buffer.byteLength, r.length)
+            assert.equal(blockSize(b), 1024)
+        })
+        test("destructured functions keep working", () => {
+            const { hexToBytes, bytesToHex, utf8ToBytes, bytesToUtf8, uvyToBytes, bytesToUvy, bytesToBigInt } = new P(1)
+            assert.equal(bytesToHex(hexToBytes("aabb")), "aabb")
+            assert.equal(bytesToUtf8(utf8ToBytes("héllo")), "héllo")
+            assert.equal(bytesToUvy(uvyToBytes("7y")), "7y")
+            assert.equal(bytesToBigInt(hexToBytes("0001")), 256n)
+            assert.equal(hexToBytes("aabb").buffer.byteLength, 1024)
+        })
+        test("instances and the direct API never share memory", () => {
+            const p1 = new P(), p2 = new P()
+            const kept = [mod, p1, p2].map((b) => decodeAll(b, 16))
+            const copies = kept.map((rs) => rs.map(([r]) => r.slice()))
+            // fill several blocks of every instance
+            for (let i = 0; i < 2000; i++) for (const b of [mod, p1, p2]) decodeAll(b, 8)
+            kept.forEach((rs, i) => rs.forEach(([r], k) => assert.deepEqual(r, copies[i][k])))
+            const buffers = [mod, p1, p2].map((b) => b.hexToBytes("aabb").buffer)
+            assert.equal(new Set(buffers).size, 3)
+            // one instance's pool is not another's
+            assert.ok(p1.utf8ToBytes("a").buffer !== p2.utf8ToBytes("a").buffer)
+        })
+    })
+
+    describe(`${name} direct API`, () => {
+        test("is not configurable", () => {
+            assert.equal(mod.setPoolSize, undefined)
+        })
+        test("every result owns its whole buffer, also empty results", () => {
+            const results = [...decodeAll(mod, 0), ...decodeAll(mod, 1), ...decodeAll(mod, 8), ...decodeAll(mod, 5000)].map(([r]) => r)
+            results.push(mod.hexToBytes(""), mod.uvyToBytes(""), mod.utf8ToBytes(""), mod.utf8ToBytes("a".repeat(40)))
+            for (const r of results) {
+                assert.equal(r.byteOffset, 0)
+                assert.equal(r.buffer.byteLength, r.length)
+            }
+            assert.equal(new Set(results.map((r) => r.buffer)).size, results.length)
         })
     })
 }

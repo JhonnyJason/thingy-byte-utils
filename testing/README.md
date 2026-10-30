@@ -1,12 +1,14 @@
 # Testing
 
 ## Files
-- `correctness.test.mjs` - correctness of every entry point in `output/`. Known bugs run as `todo`. Standard globals only, besides `node:test` and `node:assert/strict`.
+- `correctness.test.mjs` - correctness of every entry point in `output/`, each for the direct API and an `UnsafeMemPooled` instance. Known bugs run as `todo`. Standard globals only, besides `node:test` and `node:assert/strict`.
 - `correctness-browsers.mjs` - runs `correctness.test.mjs` in headless browsers. `browser/` maps `node:test` and `node:assert/strict` to small shims via an import map.
 - `browser-runner.mjs` - serves a page plus `testing/` and `output/` to a headless browser and collects the POSTed result. Used by both browser scripts.
 - `bench.mjs` - runtime-agnostic benchmark of candidate implementations per operation. Every candidate is cross-checked against the first one before timing.
-- `bench-pool.mjs` - the shipped `output/` per pool block size (one module instance each), plus the memory waste per block size.
+- `bench-pool.mjs` - the shipped `output/`: the direct API and one `UnsafeMemPooled` instance per block size, plus the memory waste per block size.
+- `bench-scratch.mjs` - `bytesToUvy` of the shipped `output/` per scratch size (one module copy each, in a temp dir).
 - `bench-browsers.mjs` - serves `bench.mjs` to a browser and collects the results.
+- `types-check.mts` - type check of `output/index.d.ts`: valid uses, and misuses marked `@ts-expect-error`.
 - `results/` - raw benchmark output per engine.
 
 ## Run
@@ -15,8 +17,10 @@ node --test testing/          # also: bun test testing/, deno test -A testing/co
 node testing/correctness-browsers.mjs [chromium] [firefox] [manual]
 node testing/bench.mjs [op]   # also: deno run / bun - op e.g. hexToBytes
 node testing/bench-pool.mjs   # also: deno run / bun
+node testing/bench-scratch.mjs   # also: deno run -A / bun
 node testing/bench-browsers.mjs firefox
 node testing/bench-browsers.mjs manual   # open the printed URL in any browser
+npx -p typescript tsc --noEmit --strict --target es2022 --module nodenext --lib es2024,dom testing/types-check.mts
 ```
 
 ## Results 2026-10-28 (single run per engine)
@@ -70,6 +74,20 @@ Alternatives tried (pool, 32-1365 chars, ascii/latin/mixed/cjk): skipping the ch
 - Waste: the tail of a replaced block is always smaller than the largest pooled result, so larger blocks waste a smaller share (results of one odd size: 700 B wastes 31% of a 2 KB block, 5.5% of 8 KB; 3000 B wastes 27% of 8 KB). The real cost of a larger block: one kept small result pins the whole block, and every module instance holds one block.
 - Recommendation (to confirm): 8 KB stays the default. It pools strings up to 1365 chars and hex/uvy results up to 4 KB, the same block size as Node's Buffer. 16 KB only helps 1-2.7 KB strings and doubles what a kept result pins. 2/4 KB lose 3-4x for strings from about 340/680 chars on V8.
 
-## Correctness 2026-10-30
-Passing everywhere (174 tests: 58 each for the native, no native hex and no codec instances): Node 26.12, Bun 1.4.4, Deno 2.9.8, Chromium 156, Firefox 159. The exhaustive tests (every UTF-16 code unit for hex/uvy, every 1-2 byte UTF-8 input) take about 4 s per instance.
+### Pool per consumer (v0.2.0, 2026-10-30, Node/Bun/Deno, two runs)
+The pool-dependent functions are closures from `createApi(poolBytes)` now, the direct API is `createApi(0)`. Compared with v0.1.1 at the same setting (no pool vs `setPoolSize(0)`, 8 KB instance vs default), 16 B - 4 KB: equal within run-to-run noise on every engine. Single outliers of up to 1.5x went away or flipped in the second run.
+
+### bytesToUvy scratch size (v0.2.0, 2026-10-30, Node/Bun/Deno, two runs)
+`bench-scratch.mjs`: a private scratch of 0 (allocate every call), 1, 4, 16 and 64 K chars, inputs of 16 B - 40 KB (8/5 chars per byte). Raw: `results/scratch-*.txt`.
+- V8 (Node, Deno): any scratch is 2.7-5.5x faster than allocating up to 64 B and 1.3-2x up to 640 B. Above that the gain is 3-12%: an output that does not fit pays the allocation (~1-2 µs), the conversion itself dominates.
+- Bun (JSC): allocating is 13-27% faster up to 64 B (the `subarray` view costs more), equal at 256 B. From 640 B a fitting scratch is 10-30% faster.
+- 16 K vs 4 K: equal up to 2.5 KB input, 9-12% faster at 4-10 KB on Node/Deno/Bun. 64 K vs 16 K: 3% faster at 40 KB on V8, 15% on Bun, otherwise equal.
+- Decision: 16 K (16 KB held per module instance, for its lifetime). It covers inputs up to 10 KB; 64 K pins 4x the memory for a few percent on rare large inputs.
+
+## Correctness 2026-10-30 (v0.2.0)
+Passing everywhere (354 tests: per implementation (native, no native hex, no codec) 55 for the direct API, 55 for a pooled instance, 8 for the configuration): Node 26.12, Bun 1.4.4, Deno 2.9.8, Chromium 156, Firefox 159. The exhaustive tests (every UTF-16 code unit for hex/uvy, every 1-2 byte UTF-8 input) take about 4 s per instance on Node, so the suite takes about 33 s.
+Types (`index.d.ts`): clean on TypeScript 7.0.2 and 5.7.3 (the first with `Uint8Array<ArrayBuffer>`), also when installed from the packed tarball (`moduleResolution` nodenext and bundler).
 Shim names must not match Node's test file patterns (`*-test.mjs`, `test-*.mjs`), or `node --test testing/` runs them.
+
+### bytesToUtf8 on shared or resizable buffers (v0.2.0, 2026-10-30, Node/Bun/Deno, two runs)
+Chromium's and Firefox's `TextDecoder` throw a `TypeError` for a view over a `SharedArrayBuffer` or a resizable `ArrayBuffer` (test: "shared and resizable backing"). Checking the buffer first (`instanceof ArrayBuffer && !resizable`) cost 20-30 ns per call (Node 16 B: 175 -> 203 ns). Shipped instead: `decode` in a `try`, retried with a `.slice()` copy on a throw. On the hot path it is equal to a plain `decode` within noise (16 B and 256 B). Invalid UTF-8 throws the same `TypeError` again on the retry.

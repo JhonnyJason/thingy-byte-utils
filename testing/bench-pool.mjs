@@ -2,13 +2,11 @@
 // CLI: node|deno|bun testing/bench-pool.mjs
 import { measure, format, engine } from "./bench.mjs"
 
-// one module instance per block size, so every pool keeps its own state
+import * as direct from "../output/index.js"
+
+// the direct API (no pool) and one UnsafeMemPooled instance per block size
 const blocks = [0, 2048, 4096, 8192, 16384]
-const impls = await Promise.all(blocks.map(async (size) => {
-    const b = await import(`../output/index.js?pool${size}`)
-    b.setPoolSize(size)
-    return [size ? `${size / 1024} KB` : "0 (no pool)", b]
-}))
+const impls = blocks.map((size) => [size ? `${size / 1024} KB` : "0 (direct)", size ? new direct.UnsafeMemPooled(size / 1024) : direct])
 
 const random = (n) => Uint8Array.from({ length: n }, () => Math.random() * 256 | 0)
 const ref = impls[0][1]
@@ -16,7 +14,7 @@ const sizes = [16, 64, 256, 1024, 2048, 4096, 8192]
 const inputsFor = {
     hexToBytes: (n) => ref.bytesToHex(random(n)),
     uvyToBytes: (n) => ref.bytesToUvy(random(n)),
-    bytesToUvy: (n) => random(n), // the pool is only scratch here
+    bytesToUvy: (n) => random(n), // uses the module scratch, never the pool - the same for every candidate
     utf8ToBytes: (n) => "Hello World! ".repeat(n).slice(0, n), // ascii: n chars -> n bytes, reserves 3n
 }
 
